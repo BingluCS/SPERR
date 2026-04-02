@@ -8,7 +8,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
-
+#include "Timer.h"
 // This functions takes in a filename, and a full resolution. It then creates a list of
 // filenames, each has the coarsened resolution appended.
 auto create_filenames(std::string name, sperr::dims_type dims) -> std::vector<std::string>
@@ -235,6 +235,7 @@ int main(int argc, char* argv[])
   const auto header_len = 10ul;
   auto input = sperr::read_whole_file<uint8_t>(input_file);
   if (cflag) {
+    Timer timer(true);
     const auto dims = sperr::dims_type{dim2d[0], dim2d[1], 1ul};
     const auto total_vals = dims[0] * dims[1] * dims[2];
     if ((ftype == 32 && (total_vals * 4 != input.size())) ||
@@ -268,6 +269,7 @@ int main(int argc, char* argv[])
       input.shrink_to_fit();
     }
 
+
     auto rtn = encoder->compress();
     if (rtn != sperr::RTNType::Good) {
       std::cout << "Compression failed!" << std::endl;
@@ -289,7 +291,7 @@ int main(int argc, char* argv[])
     std::memcpy(stream.data() + 2, dim2d.data(), sizeof(dim2d));
     encoder->append_encoded_bitstream(stream);
     encoder.reset();  // Free up some more memory.
-
+    timer.stop("Compression");
     // Output the compressed bitstream (maybe).
     if (!bitstream.empty()) {
       rtn = sperr::write_n_bytes(bitstream, stream.size(), stream.data());
@@ -370,7 +372,7 @@ int main(int argc, char* argv[])
   //
   else {
     assert(dflag);
-
+    Timer timer(true);
     if (input[0] != (SPERR_VERSION_MAJOR)) {
       std::cout << "This bitstream is produced by a compressor of a different version!"
                 << std::endl;
@@ -399,7 +401,7 @@ int main(int argc, char* argv[])
     auto hierarchy = decoder->release_hierarchy();
     auto outputd = decoder->release_decoded_data();
     decoder.reset();
-
+    timer.stop("Decompression");
     // Output the hierarchy (maybe).
     auto ret = output_hierarchy(hierarchy, dims, decomp_lowres_f64, decomp_lowres_f32);
     if (ret)

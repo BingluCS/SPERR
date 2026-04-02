@@ -9,7 +9,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
-
+#include "Timer.h"
 // This functions takes in a filename, and a full resolution. It then creates a list of
 // filenames, each has the coarsened resolution appended.
 auto create_filenames(std::string name,
@@ -268,6 +268,7 @@ int main(int argc, char* argv[])
   //
   auto input = sperr::read_whole_file<uint8_t>(input_file);
   if (cflag) {
+    Timer timer(true);
     const auto total_vals = dims[0] * dims[1] * dims[2];
     if ((ftype == 32 && (total_vals * 4 != input.size())) ||
         (ftype == 64 && (total_vals * 8 != input.size()))) {
@@ -308,7 +309,7 @@ int main(int argc, char* argv[])
 
     auto stream = encoder->get_encoded_bitstream();
     encoder.reset();  // Free up some more memory.
-
+    timer.stop("Compression");
     // Output the compressed bitstream (maybe).
     if (!bitstream.empty()) {
       rtn = sperr::write_n_bytes(bitstream, stream.size(), stream.data());
@@ -317,7 +318,6 @@ int main(int argc, char* argv[])
         return __LINE__ % 256;
       }
     }
-
     //
     // Need to do a decompression in the following cases.
     //
@@ -388,6 +388,7 @@ int main(int argc, char* argv[])
   //
   else {
     assert(dflag);
+    Timer timer(true);
     auto decoder = std::make_unique<sperr::SPERR3D_OMP_D>();
     decoder->set_num_threads(omp_num_threads);
     decoder->use_bitstream(input.data(), input.size());
@@ -403,7 +404,7 @@ int main(int argc, char* argv[])
     auto vdims = decoder->get_dims();
     auto cdims = decoder->get_chunk_dims();
     decoder.reset();  // Free up memory!
-
+    timer.stop("Decompression");
     // Output the hierarchy (maybe), and then destroy it.
     auto ret = output_hierarchy(hierarchy, vdims, cdims, decomp_lowres_f64, decomp_lowres_f32);
     if (ret)
